@@ -1,0 +1,5 @@
+:set prompt "> "
+
+import Euterpea
+import Control.Lens
+import Text.Pretty.Simple
