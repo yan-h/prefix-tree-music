@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TemplateHaskell,  FlexibleInstances, FunctionalDependencies #-}
 
 module ScalePitch where
 
@@ -97,6 +97,8 @@ data ScalePitch = ScalePitch
   , _degree :: Degree
   }
   deriving (Show)
+
+makeLenses ''ScalePitch
 
 instance GetSize ScalePitch where
   getSize (ScalePitch scale octave degree) = getSize scale
