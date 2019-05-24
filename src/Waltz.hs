@@ -1,43 +1,43 @@
 module Waltz where
 
-import           Data.Tree
 import           PrefixTree
 import           ScalePitch
+import           Control.Lens
 
-firstMeasureRightHand :: Tree (TreeModifier -> TreeModifier)
+firstMeasureRightHand :: PrefixTree (Slice -> Slice) (Event -> Event)
 firstMeasureRightHand = Node
   (atChords [0, 1, 2, 3] . atVoices [0, 1])
-  [ leaf
-    ( setScale (extractTriad 0 $ mkMajorScale 8)
-    . setDuration (3 / 8)
-    . setVolume 100
-    . setOctave 4
-    . setDegree 1
+  [ Leaf
+    id
+    (setDuration (3 / 8) . setVolume 100 . setOctave 4 . setDegree 1 . setScale
+      (extractTriad 0 $ mkMajorScale 8)
     )
-  , leaf (atChords [1, 2, 3] . setDuration (1 / 8) . modifyVolume (subtract 20))
-  , leaf (atChords [1, 2] . modifyAbsDegree (subtract 1))
-  , leaf
-    (atVoices [1] . modifyAbsDegree (subtract 2) . modifyVolume (subtract 20))
+  , Leaf (atChords [1, 2, 3]) (setDuration (1 / 8) . modifyVolume (subtract 20))
+  , Leaf (atChords [1, 2])    (modifyAbsDegree (subtract 1))
+  , Leaf (atVoices [1])
+         (modifyAbsDegree (subtract 2) . modifyVolume (subtract 20))
   ]
 
-firstMeasure :: Tree (TreeModifier -> TreeModifier)
+firstMeasure :: PrefixTree (Slice -> Slice) (Event -> Event)
 firstMeasure = Node
-  (setScale (extractTriad 0 $ mkMajorScale 8))
-  [ Node (atHands [0]) [firstMeasureRightHand]
-    -- Left hand
+  id
+  [ Leaf id (setScale (mkMajorScale 8))
+  , Node (atHands [0]) [firstMeasureRightHand]
   , Node
-    (atHands [1] . setDuration (1 / 4) . setVolume 50)
-    [ leaf (atChords [0] . atVoices [0] . setOctave 2 . setDegree 0)
+    (atHands [1])
+    [ Leaf id (modifyScale (extractTriad 0) . setDuration (1 / 4) . setVolume 50)
+    , Leaf (atChords [0] . atVoices [0]) (setOctave 2 . setDegree 0)
     , Node
-      (atChords [1, 2] . atVoices [0, 1, 2] . setOctave 3 . setDegree 1)
-      [ leaf id
-      , leaf (atChords [2] . modifyAbsDegree (subtract 1))
-      , leaf (atVoices [1] . modifyAbsDegree (subtract 1))
-      , leaf (atVoices [2] . modifyAbsDegree (subtract 2))
+      (atChords [1, 2] . atVoices [0, 1, 2])
+      [ Leaf id             (setOctave 3 . setDegree 1)
+      , Leaf (atChords [2]) (modifyAbsDegree (subtract 1))
+      , Leaf (atVoices [1]) (modifyAbsDegree (subtract 1))
+      , Leaf (atVoices [2]) (modifyAbsDegree (subtract 2))
       ]
     ]
   ]
 
+{--
 firstTwoMeasures = Node
   (atMeasures [0, 1] . setScale (extractTriad 0 $ mkMajorScale 8))
   [ Node (atHands [0]) [firstMeasureRightHand]
@@ -106,3 +106,4 @@ firstPhrase = Node
   ]
 
 
+--}

@@ -121,3 +121,69 @@ absDegree = lens get set
   set s newAbsDegree = s { _octave = newAbsDegree `div` getSize s
                          , _degree = newAbsDegree `mod` getSize s
                          }
+
+--------------------------------------------------------------------------------
+-- Event
+--------------------------------------------------------------------------------
+
+data Event = Event
+  { _duration :: Dur
+  , _volume :: Volume
+  , _scalePitch :: ScalePitch
+  }
+  deriving (Show)
+
+makeLenses ''Event
+
+defaultEvent :: Event
+defaultEvent = Event 0 0 (ScalePitch (mkMajorScale 0) 0 0)
+
+toString :: Primitive (AbsPitch, Volume) -> String
+toString (Note dur (p, v)) =
+  "note " ++ show p ++ " (" ++ show dur ++ ") " ++ show v
+toString (Rest dur) = "rest " ++ show dur
+
+eventToPitch :: Event -> AbsPitch
+eventToPitch = getPitch . view scalePitch
+
+toPrimitive :: Event -> Primitive (AbsPitch, Volume)
+toPrimitive (Event dur vol (ScalePitch scale octave degree))
+  | vol == 0
+  = Rest dur
+  | otherwise
+  = let absPitch = getPitch $ mkScalePitch scale octave degree
+    in  Note dur (absPitch, vol)
+
+
+modifyDuration :: (Dur -> Dur) -> Event -> Event
+modifyDuration = over duration
+
+modifyVolume :: (Int -> Int) -> Event -> Event
+modifyVolume = over volume
+
+modifyScale :: (Scale -> Scale) -> Event -> Event
+modifyScale = over (scalePitch . scale)
+
+modifyOctave :: (Int -> Int) -> Event -> Event
+modifyOctave = over (scalePitch . octave)
+
+modifyDegree :: (Int -> Int) -> Event -> Event
+modifyDegree = over (scalePitch . degree)
+
+modifyAbsDegree :: (Int -> Int) -> Event -> Event
+modifyAbsDegree = over (scalePitch . absDegree)
+
+setDuration :: Dur -> Event -> Event
+setDuration = modifyDuration . const
+
+setVolume :: Int -> Event -> Event
+setVolume = modifyVolume . const
+
+setScale :: Scale -> Event -> Event
+setScale = modifyScale . const
+
+setOctave :: Octave -> Event -> Event
+setOctave = modifyOctave . const
+
+setDegree :: Int -> Event -> Event
+setDegree = modifyDegree . const
