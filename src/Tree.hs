@@ -1,18 +1,25 @@
-{-# LANGUAGE TemplateHaskell, FlexibleInstances, FunctionalDependencies #-}
+{-# LANGUAGE FlexibleInstances, DeriveFunctor #-}
 
 module Tree where
 
-import           Event 
+import           Event
 
+import           Control.Lens                   ( view
+                                                , over
+                                                , set, ix
+                                                )
 import           Euterpea
 
 import           Data.Map                       ( Map )
 import qualified Data.Map                      as Map
-import           Control.Lens            hiding ( Choice )
-import           Debug.Trace
 import           Data.List                      ( foldl'
                                                 , sort
                                                 )
+
+
+--------------------------------------------------------------------------------
+-- OrientedTree 
+--------------------------------------------------------------------------------
 
 data Orientation = H | V
   deriving Show
@@ -20,18 +27,11 @@ data Orientation = H | V
 data OrientedTree a =
     Val a
   | Group Orientation [OrientedTree a]
-  deriving (Show)
-
-instance Functor OrientedTree where
-  fmap f (Val a     ) = Val (f a)
-  fmap f (Group H as) = Group H (map (fmap f) as)
-  fmap f (Group V as) = Group V (map (fmap f) as)
+  deriving (Show, Functor)
 
 --------------------------------------------------------------------------------
 -- Slice
 --------------------------------------------------------------------------------
-
-type Path = [Int]
 
 type Slice = [Choice]
 
@@ -39,21 +39,15 @@ data Choice =  Some [Int]
              | All
   deriving (Eq, Show)
 
-setAtIndex :: Int -> a -> [a] -> [a]
-setAtIndex _ _ [] = []
-setAtIndex idx val (x : xs) | idx < 0   = x : xs
-                            | idx == 0  = val : xs
-                            | otherwise = x : setAtIndex (idx - 1) val xs
-
 atHands, atPeriods, atPhrases, atMeasures, atChords, atVoices, atNotes
   :: [Int] -> Slice -> Slice
-atHands = setAtIndex 0 . Some
-atPeriods = setAtIndex 1 . Some
-atPhrases = setAtIndex 2 . Some
-atMeasures = setAtIndex 3 . Some
-atChords = setAtIndex 4 . Some
-atVoices = setAtIndex 5 . Some
-atNotes = setAtIndex 6 . Some
+atHands = set (ix 0) . Some
+atPeriods = set (ix 1) . Some
+atPhrases = set (ix 2) . Some
+atMeasures = set (ix 3) . Some
+atChords = set (ix 4) . Some
+atVoices = set (ix 5) . Some
+atNotes = set (ix 6) . Some
 
 --------------------------------------------------------------------------------
 -- TreeModifier
@@ -78,6 +72,8 @@ data PrefixTree a b =
     Leaf a b
   | Node a [PrefixTree a b]
 
+type MusicTree = PrefixTree (Slice -> Slice) (Event -> Event)
+
 toTreeModifiers
   :: PrefixTree (Slice -> Slice) (Event -> Event) -> [TreeModifier]
 toTreeModifiers = go (replicate 7 All)
@@ -93,10 +89,9 @@ toTreeModifiers = go (replicate 7 All)
 
 toOrientedTree :: [TreeModifier] -> OrientedTree Event
 toOrientedTree modifiers =
-  foldl' (flip applyModifier) (startingTree modifiers) modifiers
-
-toTreeStructure :: [TreeModifier] -> TreeStructure
-toTreeStructure = foldr (addSlice . _slice) TUnit
+  let startingTree :: OrientedTree Event
+      startingTree = makeStartingTree modifiers
+  in  foldl' (flip applyModifier) startingTree modifiers
 
 applyModifier :: TreeModifier -> OrientedTree Event -> OrientedTree Event
 applyModifier (TreeModifier slice f) = go slice
@@ -111,15 +106,25 @@ toMusic (Val x     ) = Prim (toPrimitive x)
 toMusic (Group H ts) = line1 (map toMusic ts) -- Assumes nonempty branches
 toMusic (Group V ts) = chord1 (map toMusic ts)
 
+toPlayable :: MusicTree -> Music (AbsPitch, Volume)
+toPlayable = toMusic . toOrientedTree . toTreeModifiers
+
 --------------------------------------------------------------------------------
 -- TreeShape 
 --------------------------------------------------------------------------------
 
+-- Used only to infer a skeletal 'OrientedTree' from a musical prefix tree.
 data TreeShape =
   TAll TreeShape
   | TSome [TreeShape]
   | TLeaf
-  deriving (Show)
+  deriving Show
+
+makeStartingTree :: [TreeModifier] -> OrientedTree Event
+makeStartingTree modifiers =
+  let slices        = map _slice modifiers
+      treeStructure = foldr addSlice TLeaf slices
+  in  toDefaultOrientedTree treeStructure
 
 extendList :: Int -> a -> [a] -> [a]
 extendList n e xs | n <= length xs = xs
@@ -128,12 +133,6 @@ extendList n e xs | n <= length xs = xs
 mapChoice :: [Int] -> (a -> a) -> [a] -> [a]
 mapChoice idxs f as =
   zipWith (\a idx -> if idx `elem` idxs then f a else a) as [0 ..]
-
-startingTree :: [TreeModifier] -> OrientedTree Event
-startingTree modifiers =
-  let slices        = map _slice modifiers
-      treeStructure = foldr addSlice TTLeaf slices
-  in  toDefaultOrientedTree treeStructure
 
 toDefaultOrientedTree :: TreeShape -> OrientedTree Event
 toDefaultOrientedTree =
@@ -145,14 +144,13 @@ toDefaultOrientedTree =
   go (c : cs) (TSome ts) = c . map (go cs) $ ts
 
 addSlice :: Slice -> TreeShape -> TreeShape
-addSlice []          t          = t
-addSlice (TAll : xs) TLeaf      = TAll (addSlice xs TLeaf)
-addSlice (TAll : xs) (TAll  t ) = TAll (addSlice xs t)
-addSlice (TAll : xs) (TSome ts) = TSome (map (addSlice xs) ts)
-addSlice (TSome is : xs) TLeaf =
+addSlice []         t          = t
+addSlice (All : xs) TLeaf      = TAll (addSlice xs TLeaf)
+addSlice (All : xs) (TAll  t ) = TAll (addSlice xs t)
+addSlice (All : xs) (TSome ts) = TSome (map (addSlice xs) ts)
+addSlice (Some is : xs) TLeaf =
   TSome (mapChoice is (addSlice xs) (replicate (maximum is + 1) TLeaf))
-addSlice (TSome is : xs) (TAll t) =
+addSlice (Some is : xs) (TAll t) =
   TSome (mapChoice is (addSlice xs) (replicate (maximum is + 1) t))
-addSlice (TSome is : xs) (TSome ts) =
+addSlice (Some is : xs) (TSome ts) =
   TSome (mapChoice is (addSlice xs) (extendList (maximum is + 1) TLeaf ts))
-

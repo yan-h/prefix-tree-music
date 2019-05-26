@@ -1,13 +1,19 @@
 {-# LANGUAGE TemplateHaskell,  FlexibleInstances, FunctionalDependencies #-}
 
-module ScalePitch where
+module Event where
+
+import           Control.Lens
+import           Euterpea
 
 import           Data.List                      ( nub
                                                 , sort
                                                 , minimumBy
+                                                , elemIndex
                                                 )
-import           Euterpea
-import           Control.Lens
+
+import           Data.Ord                       ( comparing )
+
+import           Data.Maybe                     ( fromJust )
 
 type Degree = Int
 
@@ -28,7 +34,7 @@ instance Num PC where
   signum      = PC . signum . _int
   fromInteger = mkPC . fromInteger
 
--- | Creates a `PC` from a `Pitch` by modding by 12.
+-- | Creates a 'PC' from an 'AbsPitch' by modding by 12.
 mkPC :: AbsPitch -> PC
 mkPC = PC . (`mod` 12)
 
@@ -49,23 +55,25 @@ class GetSize a where
 instance GetSize Scale where
   getSize (Scale _ offsets) = 1 + length offsets
 
-getPCList :: Scale -> [PC]
-getPCList (Scale root offsets) = (+ root) <$> (0 : offsets)
+mkPCList :: Scale -> [PC]
+mkPCList (Scale root offsets) = (+ root) <$> (0 : offsets)
 
 mkScale :: PC -> [PC] -> Scale
 mkScale root offsets =
   let cleanOffsets = nub . sort . filter (/= 0) $ offsets
   in  Scale root cleanOffsets
 
+-- Extracts a triad from a scale, starting on the input scale degree
 extractTriad :: Int -> Scale -> Scale
 extractTriad root scale =
-  let convert idx = getPCList scale !! (idx `mod` getSize scale)
+  let convert idx = mkPCList scale !! (idx `mod` getSize scale)
       cRoot = convert root
   in  mkScale cRoot [convert (root + 2) - cRoot, convert (root + 4) - cRoot]
 
+-- Extracts a seventh from a scale, starting on the input scale degree
 extractSeventh :: Int -> Scale -> Scale
 extractSeventh root scale =
-  let convert idx = getPCList scale !! (idx `mod` getSize scale)
+  let convert idx = mkPCList scale !! (idx `mod` getSize scale)
       cRoot = convert root
   in  mkScale
         cRoot
@@ -122,6 +130,115 @@ absDegree = lens get set
                          , _degree = newAbsDegree `mod` getSize s
                          }
 
+-- | Given a pitch, returns the lowest ScalePitch in a given scale that is higher.
+stepUp :: Scale -> ScalePitch -> ScalePitch
+stepUp scale original =
+  let refPitch   = getPitch original
+      refPC    = mkPC refPitch
+      scalePCs = mkPCList scale
+
+      finalPC  = minimumBy (comparing (subtract 1 . subtract refPC)) scalePCs
+      finalIdx = fromJust $ elemIndex finalPC scalePCs
+
+      candidates :: [ScalePitch]
+      candidates = fmap
+        ($ mkScalePitch scale (refPitch `div` 12) finalIdx)
+        [ over octave (+ 1)
+        , id
+        , over octave (subtract 1)
+        , over octave (subtract 2)
+        ]
+  in  minimumBy (comparing (\sp -> abs (getPitch sp - refPitch)))
+        . filter ((> refPitch) . getPitch)
+        $ candidates
+
+-- | Given a pitch, returns the highest ScalePitch in a given scale that is lower. 
+stepDown :: Scale -> ScalePitch -> ScalePitch
+stepDown scale original =
+  let
+    refPitch   = getPitch original
+    refPC    = mkPC refPitch
+    scalePCs = mkPCList scale
+
+    finalPC  = minimumBy (comparing (subtract 1 . (`subtract` refPC))) scalePCs
+    finalIdx = fromJust $ elemIndex finalPC scalePCs
+
+    candidates :: [ScalePitch]
+    candidates = fmap
+      ($ mkScalePitch scale (refPitch `div` 12) finalIdx)
+      [ over octave (+ 1)
+      , id
+      , over octave (subtract 1)
+      , over octave (subtract 2)
+      ]
+  in
+    minimumBy (comparing (\sp -> abs (getPitch sp - refPitch)))
+    . filter ((< refPitch) . getPitch)
+    $ candidates
+
+
+-- | Given a pitch, returns the lowest 'ScalePitch' in a given scale that is
+--   equal or higher.
+roundUp :: Scale -> ScalePitch -> ScalePitch
+roundUp scale original =
+  let refPitch   = getPitch original
+      refPC    = mkPC refPitch
+      scalePCs = mkPCList scale
+
+      finalPC  = minimumBy (comparing (subtract refPC)) scalePCs
+      finalIdx = fromJust $ elemIndex finalPC scalePCs
+
+      candidates :: [ScalePitch]
+      candidates = fmap
+        ($ mkScalePitch scale (refPitch `div` 12) finalIdx)
+        [ over octave (+ 1)
+        , id
+        , over octave (subtract 1)
+        , over octave (subtract 2)
+        ]
+  in  minimumBy (comparing (\sp -> abs (getPitch sp - refPitch)))
+        . filter ((>= refPitch) . getPitch)
+        $ candidates
+
+-- | Given a pitch, returns the highest 'ScalePitch' in a given scale that is 
+--   equal or lower.
+roundDown :: Scale -> ScalePitch -> ScalePitch
+roundDown scale original =
+  let refPitch   = getPitch original
+      refPC    = mkPC refPitch
+      scalePCs = mkPCList scale
+
+      finalPC  = minimumBy (comparing (`subtract` refPC)) scalePCs
+      finalIdx = fromJust $ elemIndex finalPC scalePCs
+
+      candidates :: [ScalePitch]
+      candidates = fmap
+        ($ mkScalePitch scale (refPitch `div` 12) finalIdx)
+        [ over octave (+ 1)
+        , id
+        , over octave (subtract 1)
+        , over octave (subtract 2)
+        ]
+  in  minimumBy (comparing (\sp -> abs (getPitch sp - refPitch)))
+        . filter ((<= refPitch) . getPitch)
+        $ candidates
+
+lead :: (Int -> Int) -> Scale -> ScalePitch -> ScalePitch
+lead f newScale scalePitch
+  | newScale == scalePitch ^. scale
+  = scalePitch & absDegree %~ f
+  | absDegreeDiff == 0
+  = roundDown newScale scalePitch
+  | absDegreeDiff > 0
+  = stepUp newScale scalePitch & absDegree %~ (+ (absDegreeDiff - 1))
+  | otherwise
+  = stepDown newScale scalePitch
+    &  absDegree
+    %~ (+ (absDegreeDiff + 1))
+ where
+  curAbsDegree  = scalePitch ^. absDegree
+  newAbsDegree  = f $ scalePitch ^. absDegree
+  absDegreeDiff = newAbsDegree - curAbsDegree
 --------------------------------------------------------------------------------
 -- Event
 --------------------------------------------------------------------------------
@@ -138,13 +255,8 @@ makeLenses ''Event
 defaultEvent :: Event
 defaultEvent = Event 0 0 (ScalePitch (mkMajorScale 0) 0 0)
 
-toString :: Primitive (AbsPitch, Volume) -> String
-toString (Note dur (p, v)) =
-  "note " ++ show p ++ " (" ++ show dur ++ ") " ++ show v
-toString (Rest dur) = "rest " ++ show dur
-
-eventToPitch :: Event -> AbsPitch
-eventToPitch = getPitch . view scalePitch
+toPitch :: Event -> AbsPitch
+toPitch = getPitch . view scalePitch
 
 toPrimitive :: Event -> Primitive (AbsPitch, Volume)
 toPrimitive (Event dur vol (ScalePitch scale octave degree))
@@ -153,7 +265,6 @@ toPrimitive (Event dur vol (ScalePitch scale octave degree))
   | otherwise
   = let absPitch = getPitch $ mkScalePitch scale octave degree
     in  Note dur (absPitch, vol)
-
 
 modifyDuration :: (Dur -> Dur) -> Event -> Event
 modifyDuration = over duration
@@ -169,6 +280,9 @@ modifyOctave = over (scalePitch . octave)
 
 modifyDegree :: (Int -> Int) -> Event -> Event
 modifyDegree = over (scalePitch . degree)
+
+modifyScalePitch :: (ScalePitch -> ScalePitch) -> Event -> Event
+modifyScalePitch = over scalePitch
 
 modifyAbsDegree :: (Int -> Int) -> Event -> Event
 modifyAbsDegree = over (scalePitch . absDegree)
@@ -187,3 +301,6 @@ setOctave = modifyOctave . const
 
 setDegree :: Int -> Event -> Event
 setDegree = modifyDegree . const
+
+setScalePitch :: ScalePitch -> Event -> Event
+setScalePitch = modifyScalePitch . const
