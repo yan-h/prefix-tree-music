@@ -49,6 +49,10 @@ atChords = set (ix 4) . Some
 atVoices = set (ix 5) . Some
 atNotes = set (ix 6) . Some
 
+inChoice :: Int -> Choice -> Bool
+inChoice _ All = True
+inChoice idx (Some idxs) = idx `elem` idxs
+
 --------------------------------------------------------------------------------
 -- TreeModifier
 --------------------------------------------------------------------------------
@@ -73,6 +77,8 @@ data PrefixTree a b =
   | Node a [PrefixTree a b]
 
 type MusicTree = PrefixTree (Slice -> Slice) (Event -> Event)
+
+type VariationTree = PrefixTree (Choice, (Slice -> Slice)) (Event -> Event)
 
 toTreeModifiers
   :: PrefixTree (Slice -> Slice) (Event -> Event) -> [TreeModifier]

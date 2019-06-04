@@ -11,10 +11,11 @@ import           Waltz.PhraseC
 -- Brahms's Waltz Op 39 No 15, excluding the last period
 waltz :: MusicTree
 waltz = Node
-  (atPeriods [0, 1, 2])
-  [ Leaf (atVoices [0]) (modifyVolume (+ 10))
-  , Node
-    (atPeriods [0, 1, 2])
-    [Node (atPhrases [0]) [phraseA], Node (atPhrases [1]) [phraseBAllPeriods]]
-  , Node (atPeriods [1, 2] . atPhrases [2]) [phraseC]
+  id
+  [ Node
+    (atPeriods [0, 1, 2, 3])
+    [ Node (atPhrases [0])                    [phraseAPeriods0123]
+    , Node (atPhrases [1])                    [phraseBPeriods0123]
+    , Node (atPeriods [1, 2] . atPhrases [2]) [phraseC]
+    ]
   ]

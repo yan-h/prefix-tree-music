@@ -7,13 +7,11 @@ import           Waltz.Shared
 phraseC :: MusicTree
 phraseC = Node
   (atPhrases [2])
-  [ -- First five measures
-    lhRhythmMeter
-  , Node
+  [ -- Measures 0, 1, 2, 3, 4
+    Node
     (atMeasures [0, 1, 2, 3, 4])
-    [ rhRhythmMeter
-      -- Harmony for both hands
-    , Node
+    [ -- Harmony for both hands
+      Node
       (atHands [0, 1])
       [ Leaf (atMeasures [0]) (setScale (extractSeventh 4 (mkMajorScale 8)))
       , Leaf (atMeasures [1]) (setScale (extractTriad 0 (mkMajorScale 8)))
@@ -24,7 +22,8 @@ phraseC = Node
       -- Right hand
     , Node
       (atHands [0])
-      [ Node
+      [ unevenRhythmMeter
+      , Node
         (atMeasures [0, 2])
         [ Leaf id (setOctave 5 . setDegree 0)
         , voiceStack (atChords [0]) id [-1, -2, -3, -4]
@@ -52,10 +51,10 @@ phraseC = Node
         , Leaf (atChords [3]) (modifyAbsDegree (subtract 1))
         ]
       ]
-        -- Left hand
+      -- Left hand
     , Node
       (atHands [1])
-      [ lhRhythmMeter
+      [ evenRhythmMeterL
       , Node
         (atMeasures [0, 2])
         [ Node
@@ -81,47 +80,44 @@ phraseC = Node
         ]
       ]
     ]
-    -- Final measure (pasted in)
-  , phraseCLastMeasure
-  ]
-
--- Final measure of Phrase C
-phraseCLastMeasure :: MusicTree
-phraseCLastMeasure = Node
-  (atMeasures [5])
-  [ Node
-    (atHands [0])
-    [ voiceStack
-      (atChords [0, 1, 2])
-      ( setScale (extractSeventh 1 $ mkMajorScale 8)
-      . setDuration (1 / 4)
-      . setVolume 100
-      . setOctave 4
-      . setDegree 3
-      )
-      [-2, -3]
-    , Node
-      (atChords [0] . atVoices [0])
-      [ Leaf (atNotes [0, 1]) (setDuration (1 / 8))
-      , Leaf (atNotes [1])    (modifyScalePitch (stepDown (mkMajorScale 8)))
-      ]
-    , Node
-      (atChords [1, 2])
-      [ Leaf (atVoices [0]) (modifyScalePitch (stepDown (mkMajorScale 8)))
-      , Leaf id (modifyScalePitch (roundDown (extractTriad 3 $ mkMajorScale 8)))
-      ]
-    , Leaf (atChords [2])
-           (modifyScalePitch (roundDown (extractSeventh 4 $ mkMajorScale 8)))
-    ]
+    -- Measure 5
   , Node
-    (atHands [1])
-    [ Leaf
-      id
-      (setDuration (1 / 4) . setVolume 50 . setScale
-        (extractSeventh 4 $ mkMajorScale 8)
-      )
-    , Leaf (atChords [0]) (setOctave 2 . setDegree 0)
-    , voiceStack (atChords [1]) (setOctave 3 . setDegree 3) [-1, -3]
-    , voiceStack (atChords [2]) (setOctave 4 . setDegree 0) [-2, -4]
+    (atMeasures [5])
+    [ Leaf id (setDuration (1 / 4))
+      -- Right hand
+    , Node
+      (atHands [0])
+      [ voiceStack
+        (atChords [0, 1, 2])
+        ( setScale (extractSeventh 1 $ mkMajorScale 8)
+        . setVolume 100
+        . setOctave 4
+        . setDegree 3
+        )
+        [-2, -3]
+      , Node
+        (atChords [0] . atVoices [0])
+        [ Leaf (atNotes [0, 1]) (setDuration (1 / 8))
+        , Leaf (atNotes [1])    (modifyScalePitch (stepDown (mkMajorScale 8)))
+        ]
+      , Node
+        (atChords [1, 2])
+        [ Leaf (atVoices [0]) (modifyScalePitch (stepDown (mkMajorScale 8)))
+        , Leaf
+          id
+          (modifyScalePitch (roundDown (extractTriad 3 $ mkMajorScale 8)))
+        ]
+      , Leaf
+        (atChords [2])
+        (modifyScalePitch (roundDown (extractSeventh 4 $ mkMajorScale 8)))
+      ]
+      -- Left hand
+    , Node
+      (atHands [1])
+      [ Leaf id (setVolume 60 . setScale (extractSeventh 4 $ mkMajorScale 8))
+      , Leaf (atChords [0]) (setOctave 2 . setDegree 0)
+      , voiceStack (atChords [1]) (setOctave 3 . setDegree 3) [-1, -3]
+      , voiceStack (atChords [2]) (setOctave 4 . setDegree 0) [-2, -4]
+      ]
     ]
   ]
