@@ -84,7 +84,7 @@ phraseAMeasure2 = Node
     ]
   ]
 
--- The complete first phrase, shared across periods 0, 1, and 2.
+-- The complete first phrase, identical across periods 0, 1, and 2.
 -- Measure 2 is pasted; measures 0 and 1 were reworked 
 -- so some material could be shared with measure 3.
 phraseAPeriods012 :: MusicTree
@@ -171,6 +171,7 @@ phraseAPeriods012 = Node
     ]
   ]
 
+-- The complete first phrase, including the variation in period 3.
 phraseAPeriods0123 :: MusicTree
 phraseAPeriods0123 = Node
   (atPeriods [0, 1, 2, 3] . atMeasures [0, 1, 2, 3] . atHands [0, 1])

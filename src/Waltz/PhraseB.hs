@@ -235,7 +235,7 @@ phraseBPeriods012 = Node
             , Leaf (atChords [3] . atVoices [0]) (setOctave 5 . setDegree 0)
             ]
           , Node
-            (atPeriods [1, 2])
+            (atPeriods [1])
             [ voiceStack (atChords [1, 2]) (setOctave 5 . setDegree 0) [-1, -2]
             , Leaf (atChords [3] . atVoices [0]) (setOctave 5 . setDegree 1)
             ]
