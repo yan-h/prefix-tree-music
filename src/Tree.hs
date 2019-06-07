@@ -49,10 +49,6 @@ atChords = set (ix 4) . Some
 atVoices = set (ix 5) . Some
 atNotes = set (ix 6) . Some
 
-inChoice :: Int -> Choice -> Bool
-inChoice _ All = True
-inChoice idx (Some idxs) = idx `elem` idxs
-
 --------------------------------------------------------------------------------
 -- TreeModifier
 --------------------------------------------------------------------------------
