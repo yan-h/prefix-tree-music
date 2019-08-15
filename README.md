@@ -1,3 +1,5 @@
+A recreation of Brahms' Waltz in A Flat Major using prefix trees. The code is in Haskell, and is built on the [Euterpea](http://euterpea.com/) library.
+
 This project uses [Stack](https://docs.haskellstack.org/en/stable/README/).
 
 To play the Waltz, run the following in ghci:
