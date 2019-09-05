@@ -1,4 +1,6 @@
-Accompanying paper: [Representing music with prefix trees](https://dl.acm.org/authorize?N680357) <!-- ACM DL Article: Representing music with prefix trees -->
+[Accompanying paper](https://dl.acm.org/authorize?N680357) <!-- ACM DL Article: Representing music with prefix trees -->
+
+[Presentation slides](https://docs.google.com/presentation/d/1bBmiAERL3_-Jdrq-zzr6QRyQqib-1JGjIYjDAKQ-Jvs/edit?usp=sharing)
 
 A recreation of Brahms' Waltz in A Flat Major using prefix trees. The code is in Haskell, and is built on the [Euterpea](http://euterpea.com/) library.
 
